@@ -1,0 +1,7 @@
+## Title: Helmet Toggle
+## APIVersion: 100009
+## Description: Adds a button to the UI to toggle show/hide helmet.
+## SavedVariables: HelmetToggleSavedVariables
+
+HelmetToggle.xml
+HelmetToggle.lua
