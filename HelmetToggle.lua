@@ -13,8 +13,8 @@ HelmetToggle.name = "HelmetToggle"
 
 -- Event handler function, called when the button was moved
 function HelmetToggle.OnButtonMoveStop()
-	HelmetToggle.savedVariables.left = HelmetToggleButton:GetLeft()
-	HelmetToggle.savedVariables.top = HelmetToggleButton:GetTop()
+	HelmetToggle.savedVariables.left = HelmetToggleUI:GetLeft()
+	HelmetToggle.savedVariables.top = HelmetToggleUI:GetTop()
 end
 
 -- Event handler function, called when the button was clicked
@@ -34,8 +34,8 @@ function HelmetToggle:RestoreButtonPosition()
 	local left = self.savedVariables.left
 	local top = self.savedVariables.top
 
-	HelmetToggleButton:ClearAnchors()
-	HelmetToggleButton:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, left, top)
+	HelmetToggleUI:ClearAnchors()
+	HelmetToggleUI:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, left, top)
 end
  
 -- Event handler function for EVENT_ADD_ON_LOADED
@@ -45,6 +45,15 @@ function HelmetToggle.OnAddOnLoaded(event, addonName)
 
 	-- Initialise addon
 	HelmetToggle:Init()
+end
+
+-- Event handler function for EVENT_RETICLE_HIDDEN_UPDATE
+function HelmetToggle.OnReticleHidden(eventCode, hidden)
+	if (hidden) and not ZO_Compass:IsHidden() then
+		HelmetToggleUI:SetHidden(false)
+	else
+		HelmetToggleUI:SetHidden(true)
+	end
 end
  
 -- Initialisations
@@ -56,5 +65,6 @@ function HelmetToggle:Init()
 	self:RestoreButtonPosition()
 end
  
--- Registering the event handler function for the proper event
+-- Registering the event handler functions for the events
 EVENT_MANAGER:RegisterForEvent(HelmetToggle.name, EVENT_ADD_ON_LOADED, HelmetToggle.OnAddOnLoaded)
+EVENT_MANAGER:RegisterForEvent(HelmetToggle.name, EVENT_RETICLE_HIDDEN_UPDATE, HelmetToggle.OnReticleHidden)
