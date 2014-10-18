@@ -11,8 +11,8 @@ HelmetToggle = {}
 -- Name string
 HelmetToggle.name = "HelmetToggle"
 
--- Event handler function, called when the button was moved
-function HelmetToggle.OnButtonMoveStop()
+-- Event handler function, called when the UI was moved
+function HelmetToggle.OnUIMoveStop()
 	HelmetToggle.savedVariables.left = HelmetToggleUI:GetLeft()
 	HelmetToggle.savedVariables.top = HelmetToggleUI:GetTop()
 end
@@ -52,6 +52,13 @@ function HelmetToggle.OnReticleHidden(eventCode, hidden)
 	if (hidden) and not ZO_Compass:IsHidden() then
 		HelmetToggleUI:SetHidden(false)
 	else
+		HelmetToggleUI:SetHidden(true)
+	end
+end
+
+-- Event handler function, called when the UI was updated
+function HelmetToggle.OnUIUpdate()
+	if ZO_Compass:IsHidden() or not ZO_Loot:IsHidden() then
 		HelmetToggleUI:SetHidden(true)
 	end
 end

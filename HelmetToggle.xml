@@ -5,8 +5,11 @@
 			<Anchor point="CENTER" />
 
 			<OnMoveStop>
-				HelmetToggle.OnButtonMoveStop()
+				HelmetToggle.OnUIMoveStop()
 			</OnMoveStop>
+			<OnUpdate>
+				HelmetToggle.OnUIUpdate()
+			</OnUpdate>
 			
 			<Controls>
 				<Label name="$(parent)Label" font="ZoFontGameLargeBoldShadow" color="C5C29E" wrapmode="ELLIPSIS" verticalAlignment="CENTER" text="Helmet:">
