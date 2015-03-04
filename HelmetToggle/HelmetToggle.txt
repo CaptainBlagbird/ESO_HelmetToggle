@@ -1,6 +1,6 @@
 ## Title: Helmet Toggle
 ## Author: |c70C0DECaptainBlagbird|r
-## APIVersion: 100010
+## APIVersion: 100011
 ## Description: Adds a button to the UI to toggle show/hide helmet.
 ## SavedVariables: HelmetToggleSavedVariables
 
