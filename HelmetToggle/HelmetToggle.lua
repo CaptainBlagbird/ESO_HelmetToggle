@@ -6,10 +6,16 @@ https://github.com/CaptainBlagbird
 
 --]]
 
--- Namespace for the addon (top-level table) that will hold everything
-HelmetToggle = {}
--- Name string
-HelmetToggle.name = "HelmetToggle"
+-- Addon info
+local AddonName = "HelmetToggle"
+local UIName = AddonName.."UI"
+
+-- Local variables
+local savedVariables = {}
+local tlw
+local label
+local button
+
 
 -- Convert string to boolean by using a list of keywords
 local function tobool(str)
@@ -38,98 +44,10 @@ local function tobool(str)
 	return list[str]
 end
 
--- Event handler function, called when the UI was moved
-function HelmetToggle.OnUIMoveStop()
-	HelmetToggle.savedVariables.left = HelmetToggleUI:GetLeft()
-	HelmetToggle.savedVariables.top = HelmetToggleUI:GetTop()
-end
-
--- Event handler function, called when the button was clicked
-function HelmetToggle.OnButtonClicked()
-	HelmetToggle.ToggleHelmet()
-end
-
--- Function to restore the position of the Button
-function HelmetToggle:RestoreButtonPosition()
-	local left = self.savedVariables.left
-	local top = self.savedVariables.top
-
-	HelmetToggleUI:ClearAnchors()
-	HelmetToggleUI:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, left, top)
-end
- 
--- Event handler function for EVENT_ADD_ON_LOADED
-function HelmetToggle.OnAddOnLoaded(event, addonName)
-	-- Only continue if the loaded addon is this addon
-	if addonName ~= HelmetToggle.name then return end
-
-	-- Initialise addon
-	HelmetToggle:Init()
-end
-
--- Event handler function for EVENT_RETICLE_HIDDEN_UPDATE
-function HelmetToggle.OnReticleHidden(eventCode, hidden)
-	if (hidden) and not ZO_Compass:IsHidden() then
-		HelmetToggleUI:SetHidden(false)
-	else
-		HelmetToggleUI:SetHidden(true)
-	end
-end
-
--- Event handler function, called when the UI was updated
-function HelmetToggle.OnUIUpdate()
-	if ZO_Compass:IsHidden() or not ZO_Loot:IsHidden() then
-		HelmetToggleUI:SetHidden(true)
-	end
-end
-
--- Event handler function, called when the combat state changed
-function HelmetToggle.OnCombatStateChange(event, inCombat)
-	HelmetToggle.ToggleHelmet(inCombat)
-end
-
--- Function for slash command
-function HelmetToggle.ChatCommand(argument)
-	-- Trim whitespaces from input string
-	argument = argument:gsub("^%s*(.-)%s*$", "%1")
-	-- Convert string to lower case
-	argument = argument:lower()
-	-- No argument toggles current mode
-	if argument == "" then
-		if HelmetToggle.savedVariables.auto == nil then
-			HelmetToggle.savedVariables.auto = true
-		else
-			HelmetToggle.savedVariables.auto = not HelmetToggle.savedVariables.auto
-		end
-	else
-		local boolArg = tobool(argument)
-		if boolArg == nil or argument == "?" then
-			-- Display error message
-			d("|c70C0DE[HelmetToggle]|r Invalid argument, valid options: |cC5C29E" .. tobool("?") .. " and no argument|r")
-			return
-		else
-			HelmetToggle.savedVariables.auto = boolArg
-		end
-	end
-	-- Start of output string
-	local str = "|c70C0DE[HelmetToggle]|r Auto mode "
-	if HelmetToggle.savedVariables.auto then
-		-- Register function for event
-		EVENT_MANAGER:RegisterForEvent(HelmetToggle.name, EVENT_PLAYER_COMBAT_STATE, HelmetToggle.OnCombatStateChange)
-		str = str .. "|c00FF00enabled|r"
-	else
-		-- Unregister function for event
-		EVENT_MANAGER:UnregisterForEvent(HelmetToggle.name, EVENT_PLAYER_COMBAT_STATE)
-		str = str .. "|cFF0000disabled|r"
-	end
-	-- Finally display output string with changed mode
-	d(str)
-end
-
--- Event handler function, called when the button was clicked
-function HelmetToggle.ToggleHelmet(arg)
+-- Change helmet setting
+local function ToggleHelmet(arg)
 	-- Check if argument specified
-	if arg ~= nil then
+	if type(arg) == "boolean" then
 		-- Use argument as new setting
 		SetSetting(SETTING_TYPE_IN_WORLD, IN_WORLD_UI_SETTING_HIDE_HELM, tostring(not arg), 1)
 	else
@@ -138,24 +56,123 @@ function HelmetToggle.ToggleHelmet(arg)
 		SetSetting(SETTING_TYPE_IN_WORLD, IN_WORLD_UI_SETTING_HIDE_HELM, tostring(not tobool(old)), 1)
 	end
 end
- 
--- Initialisations
-function HelmetToggle:Init()
+
+-- UI position restore
+local function RestoreUIPosition()
+	HelmetToggleUI:ClearAnchors()
+	HelmetToggleUI:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, savedVariables.left, savedVariables.top)
+end
+
+-- Event handler function for EVENT_RETICLE_HIDDEN_UPDATE
+local function OnReticleHidden(eventCode, isHidden)
+	if isHidden and not ZO_Compass:IsHidden() then
+		HelmetToggleUI:SetHidden(false)
+	else
+		HelmetToggleUI:SetHidden(true)
+	end
+end
+
+-- Event handler function for EVENT_PLAYER_COMBAT_STATE
+local function OnCombatStateChange(eventCode, inCombat)
+	ToggleHelmet(inCombat)
+end
+
+-- Slash command function
+local function SlashCommand(argument)
+	-- Trim whitespaces from input string
+	argument = argument:gsub("^%s*(.-)%s*$", "%1")
+	-- Convert string to lower case
+	argument = argument:lower()
+	-- No argument toggles current mode
+	if argument == "" then
+		if savedVariables.auto == nil then
+			savedVariables.auto = true
+		else
+			savedVariables.auto = not savedVariables.auto
+		end
+	else
+		local boolArg = tobool(argument)
+		if boolArg == nil or argument == "?" then
+			-- Display error message
+			d("|c70C0DE[HelmetToggle]|r Invalid argument, valid options: |cC5C29E" .. tobool("?") .. " and no argument|r")
+			return
+		else
+			savedVariables.auto = boolArg
+		end
+	end
+	-- Start of output string
+	local str = "|c70C0DE[HelmetToggle]|r Auto mode "
+	-- (Un)Register event
+	if savedVariables.auto then
+		ToggleHelmet(false)
+		EVENT_MANAGER:RegisterForEvent(AddonName, EVENT_PLAYER_COMBAT_STATE, OnCombatStateChange)
+		str = str .. "|c00FF00enabled|r"
+	else
+		EVENT_MANAGER:UnregisterForEvent(AddonName, EVENT_PLAYER_COMBAT_STATE)
+		str = str .. "|cFF0000disabled|r"
+	end
+	-- Finally display output string with changed mode
+	d(str)
+end
+
+-- UI initialisation
+local function InitUI()
+	-- Top level window
+	tlw = WINDOW_MANAGER:CreateTopLevelWindow(UIName)
+	tlw:SetMouseEnabled(true)
+	tlw:SetMovable(true)
+	tlw:SetDimensions(170, 24)
+	tlw:SetAnchor(CENTER, GuiRoot, CENTER, 0, 0)
+	tlw:SetHandler("OnMoveStop", function()
+			savedVariables.left = tlw:GetLeft()
+			savedVariables.top = tlw:GetTop()
+		end)
+	tlw:SetHandler("OnUpdate", function()
+			if ZO_Compass:IsHidden() or not ZO_Loot:IsHidden() then
+				tlw:SetHidden(true)
+			end
+		end)
+	-- Label
+	label = WINDOW_MANAGER:CreateControl(UIName.."_Label", tlw, CT_LABEL)
+	label:SetFont("ZoFontGameLargeBoldShadow")
+	label:SetColor(0.77, 0.76, 0.62) --> #C5C29E --> ESO gold
+	label:SetWrapMode(TEXT_WRAP_MODE_ELLIPSIS)
+	label:SetVerticalAlignment(CENTER)
+	label:SetText("Helmet:")
+	label:SetAnchor(LEFT, tlw, LEFT, 15, 0)
+	-- Button
+	button = WINDOW_MANAGER:CreateControlFromVirtual(UIName.."_Button", tlw, "ZO_DefaultButton")
+	button:SetText("Toggle")
+	button:SetDimensions(100, 24)
+	button:SetAnchor(RIGHT, tlw, RIGHT, 0, 0)
+	button:SetHandler("OnClicked", function()
+			ToggleHelmet()
+			if savedVariables.auto then
+				SlashCommand("false")
+			end
+		end)
+end
+
+-- Event handler function for EVENT_PLAYER_ACTIVATED
+local function OnPlayerActivated(event, addonName)
 	-- Set up SavedVariables object
-	self.savedVariables = ZO_SavedVars:New("HelmetToggleSavedVariables", 1, nil, {})
+	savedVariables = ZO_SavedVars:New("HelmetToggleSavedVariables", 1, nil, {})
 	
 	-- Register slash command and link function
-	SLASH_COMMANDS["/helmettoggle"] = HelmetToggle.ChatCommand
+	SLASH_COMMANDS["/helmettoggle"] = SlashCommand
 	
 	-- Make sure the event is registered if auto mode is on
-	if HelmetToggle.savedVariables.auto then
-		EVENT_MANAGER:RegisterForEvent(HelmetToggle.name, EVENT_PLAYER_COMBAT_STATE, HelmetToggle.OnCombatStateChange)
+	if savedVariables.auto then
+		EVENT_MANAGER:RegisterForEvent(AddonName, EVENT_PLAYER_COMBAT_STATE, OnCombatStateChange)
 	end
 	
-	-- Restore button position
-	self:RestoreButtonPosition()
+	-- Create UI and restore button position
+	InitUI()
+	RestoreUIPosition()
+	
+	-- Register events that use the UI
+	EVENT_MANAGER:RegisterForEvent(AddonName, EVENT_RETICLE_HIDDEN_UPDATE, OnReticleHidden)
+	
+	EVENT_MANAGER:UnregisterForEvent(AddonName, EVENT_PLAYER_ACTIVATED)
 end
- 
--- Registering the event handler functions for the events
-EVENT_MANAGER:RegisterForEvent(HelmetToggle.name, EVENT_ADD_ON_LOADED, HelmetToggle.OnAddOnLoaded)
-EVENT_MANAGER:RegisterForEvent(HelmetToggle.name, EVENT_RETICLE_HIDDEN_UPDATE, HelmetToggle.OnReticleHidden)
+EVENT_MANAGER:RegisterForEvent(AddonName, EVENT_PLAYER_ACTIVATED, OnPlayerActivated)
