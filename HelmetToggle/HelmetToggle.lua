@@ -7,8 +7,22 @@ https://github.com/CaptainBlagbird
 --]]
 
 -- Addon info
+HelmetToggle = {}
 local AddonName = "HelmetToggle"
 local UIName = AddonName.."UI"
+HelmetToggle.SavedVariables_defaults = {
+	["position"] = {},
+	["autoEnabled"] = false,
+	["uiEnabled"] = true,
+	["delayShow"] = 0,
+	["delayHide"] = 0,
+	["slashEnabled"] = false,
+}
+ZO_CreateStringId("SI_BINDING_NAME_HELMET_TOGGLE", "Helmet Toggle")
+
+-- Constants
+local HELMET_SHOW  = "0"
+local HELMET_HIDE = "1"
 
 -- Local variables
 local savedVariables = {}
@@ -17,94 +31,51 @@ local label
 local button
 
 
--- Convert string to boolean by using a list of keywords
-local function tobool(str)
-	local list = {}
-	list["true"]  = true
-	list["on"]    = true
-	list["1"]     = true
-	list["false"] = false
-	list["off"]   = false
-	list["0"]     = false
-	
-	-- If input is "?", then return a list of all possible options
-	if str == "?" then
-		local strKeys = ""
-		for k,v in pairs(list) do
-			if strKeys == "" then
-				strKeys = k
-			else
-				strKeys = strKeys .. " / " .. k
-			end
-		end
-		return strKeys
-	end
-	
-	-- Return the value for that key
-	return list[str]
-end
-
 -- Change helmet setting
-local function ToggleHelmet(arg)
-	-- Check if argument specified
-	if type(arg) == "boolean" then
-		-- Use argument as new setting
-		SetSetting(SETTING_TYPE_IN_WORLD, IN_WORLD_UI_SETTING_HIDE_HELM, tostring(not arg), 1)
-	else
-		-- No argument specified, toggle current setting
-		local old = GetSetting(SETTING_TYPE_IN_WORLD, IN_WORLD_UI_SETTING_HIDE_HELM)
-		SetSetting(SETTING_TYPE_IN_WORLD, IN_WORLD_UI_SETTING_HIDE_HELM, tostring(not tobool(old)), 1)
+function HelmetToggle:ToggleHelmet(showHelmet, delay)
+	local newSettingValue
+	
+	-- Handle invalid argument
+	if type(showHelmet) ~= "boolean" then
+		-- Get current setting and convert to boolean (inverted because we want to toggle it)
+		showHelmet = GetSetting(SETTING_TYPE_IN_WORLD, IN_WORLD_UI_SETTING_HIDE_HELM) == HELMET_HIDE
+		-- Disable auto mode
+		if savedVariables.autoEnabled then HelmetToggle:ToggleAutoMode(false) end
 	end
-end
-
--- UI position restore
-local function RestoreUIPosition()
-	HelmetToggleUI:ClearAnchors()
-	HelmetToggleUI:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, savedVariables.left, savedVariables.top)
-end
-
--- Event handler function for EVENT_RETICLE_HIDDEN_UPDATE
-local function OnReticleHidden(eventCode, isHidden)
-	if isHidden and not ZO_Compass:IsHidden() then
-		HelmetToggleUI:SetHidden(false)
+	
+	-- Convert to string
+	newSettingValue = showHelmet and HELMET_SHOW or HELMET_HIDE
+	
+	if type(delay) == "number" and delay > 0 then
+		zo_callLater(function()
+				SetSetting(SETTING_TYPE_IN_WORLD, IN_WORLD_UI_SETTING_HIDE_HELM, newSettingValue, 1)
+			end, delay)
 	else
-		HelmetToggleUI:SetHidden(true)
+		SetSetting(SETTING_TYPE_IN_WORLD, IN_WORLD_UI_SETTING_HIDE_HELM, newSettingValue, 1)
 	end
 end
 
 -- Event handler function for EVENT_PLAYER_COMBAT_STATE
 local function OnCombatStateChange(eventCode, inCombat)
-	ToggleHelmet(inCombat)
+	local delay = inCombat and savedVariables.delayShow or savedVariables.delayHide
+	HelmetToggle:ToggleHelmet(inCombat, delay)
 end
 
--- Slash command function
-local function SlashCommand(argument)
-	-- Trim whitespaces from input string
-	argument = argument:gsub("^%s*(.-)%s*$", "%1")
-	-- Convert string to lower case
-	argument = argument:lower()
-	-- No argument toggles current mode
-	if argument == "" then
-		if savedVariables.auto == nil then
-			savedVariables.auto = true
-		else
-			savedVariables.auto = not savedVariables.auto
-		end
-	else
-		local boolArg = tobool(argument)
-		if boolArg == nil or argument == "?" then
-			-- Display error message
-			d("|c70C0DE[HelmetToggle]|r Invalid argument, valid options: |cC5C29E" .. tobool("?") .. " and no argument|r")
-			return
-		else
-			savedVariables.auto = boolArg
-		end
+-- Toggle auto mode
+function HelmetToggle:ToggleAutoMode(enabled)
+	if enabled == nil then
+		enabled = not savedVariables.autoEnabled
+	elseif type(enabled) ~= "boolean" then
+		return
 	end
+	
+	savedVariables.autoEnabled = enabled
+	
 	-- Start of output string
 	local str = "|c70C0DE[HelmetToggle]|r Auto mode "
 	-- (Un)Register event
-	if savedVariables.auto then
-		ToggleHelmet(false)
+	if savedVariables.autoEnabled then
+		HelmetToggle:ToggleHelmet(false)
 		EVENT_MANAGER:RegisterForEvent(AddonName, EVENT_PLAYER_COMBAT_STATE, OnCombatStateChange)
 		str = str .. "|c00FF00enabled|r"
 	else
@@ -119,18 +90,12 @@ end
 local function InitUI()
 	-- Top level window
 	tlw = WINDOW_MANAGER:CreateTopLevelWindow(UIName)
+	tlw:SetDimensions(170, 24)
 	tlw:SetMouseEnabled(true)
 	tlw:SetMovable(true)
-	tlw:SetDimensions(170, 24)
-	tlw:SetAnchor(CENTER, GuiRoot, CENTER, 0, 0)
 	tlw:SetHandler("OnMoveStop", function()
-			savedVariables.left = tlw:GetLeft()
-			savedVariables.top = tlw:GetTop()
-		end)
-	tlw:SetHandler("OnUpdate", function()
-			if ZO_Compass:IsHidden() or not ZO_Loot:IsHidden() then
-				tlw:SetHidden(true)
-			end
+			savedVariables.position.left = tlw:GetLeft()
+			savedVariables.position.top = tlw:GetTop()
 		end)
 	-- Label
 	label = WINDOW_MANAGER:CreateControl(UIName.."_Label", tlw, CT_LABEL)
@@ -139,39 +104,93 @@ local function InitUI()
 	label:SetWrapMode(TEXT_WRAP_MODE_ELLIPSIS)
 	label:SetVerticalAlignment(CENTER)
 	label:SetText("Helmet:")
+	label:ClearAnchors()
 	label:SetAnchor(LEFT, tlw, LEFT, 15, 0)
 	-- Button
 	button = WINDOW_MANAGER:CreateControlFromVirtual(UIName.."_Button", tlw, "ZO_DefaultButton")
 	button:SetText("Toggle")
 	button:SetDimensions(100, 24)
+	button:ClearAnchors()
 	button:SetAnchor(RIGHT, tlw, RIGHT, 0, 0)
 	button:SetHandler("OnClicked", function()
-			ToggleHelmet()
-			if savedVariables.auto then
+			HelmetToggle:ToggleHelmet()
+			if savedVariables.autoEnabled then
 				SlashCommand("false")
 			end
 		end)
 end
 
+-- UI position restore
+function HelmetToggle:RestoreUIPosition()
+	HelmetToggleUI:ClearAnchors()
+	-- Check if table empty
+	if next(savedVariables.position) == nil then
+		HelmetToggleUI:SetAnchor(CENTER, GuiRoot, CENTER, 0, 0)
+	else
+		HelmetToggleUI:SetAnchor(TOPLEFT, GuiRoot, TOPLEFT, savedVariables.position.left, savedVariables.position.top)
+	end
+end
+
+-- Event handler function for EVENT_ACTION_LAYER_POPPED and EVENT_ACTION_LAYER_PUSHED
+local function OnActionLayerPoppedPushed(eventCode, layerIndex, activeLayerIndex)
+	-- Handle UI hide/show
+	if eventCode == EVENT_ACTION_LAYER_POPPED then
+		HelmetToggleUI:SetHidden(true)
+	elseif eventCode == EVENT_ACTION_LAYER_PUSHED then
+		if ZO_Compass:IsHidden() or not ZO_Loot:IsHidden() then
+			HelmetToggleUI:SetHidden(true)
+		else
+			HelmetToggleUI:SetHidden(false)
+		end
+	end
+end
+
+-- Handle UI toggling
+function HelmetToggle:ShowUI(value)
+	if type(value) ~= "boolean" then return end
+	-- If the argument isn't the current saved variable value, save the new value and show/hide UI
+	if value ~= savedVariables.uiEnabled then
+		savedVariables.uiEnabled = value
+		HelmetToggleUI:SetHidden(not value)
+	end
+	if value then
+		EVENT_MANAGER:RegisterForEvent(AddonName, EVENT_ACTION_LAYER_POPPED, OnActionLayerPoppedPushed)
+		EVENT_MANAGER:RegisterForEvent(AddonName, EVENT_ACTION_LAYER_PUSHED, OnActionLayerPoppedPushed)
+	else
+		EVENT_MANAGER:UnregisterForEvent(AddonName, EVENT_ACTION_LAYER_POPPED)
+		EVENT_MANAGER:UnregisterForEvent(AddonName, EVENT_ACTION_LAYER_PUSHED)
+	end
+end
+
 -- Event handler function for EVENT_PLAYER_ACTIVATED
 local function OnPlayerActivated(event, addonName)
 	-- Set up SavedVariables object
-	savedVariables = ZO_SavedVars:New("HelmetToggleSavedVariables", 1, nil, {})
+	savedVariables = ZO_SavedVars:New("HelmetToggleSavedVariables", 1, nil, HelmetToggle.SavedVariables_defaults)
 	
-	-- Register slash command and link function
-	SLASH_COMMANDS["/helmettoggle"] = SlashCommand
+	-- Get saved variables table for current user/char directly (without metatable), so it is possible to use pairs()
+	local sv = HelmetToggleSavedVariables.Default[GetDisplayName()][GetUnitName("player")]
+	-- Clean up saved variables (from previous versions)
+	for key, val in pairs(sv) do
+		-- Delete key-value pair if the key can't also be found in the default settings (except for version)
+		if key ~= "version" and HelmetToggle.SavedVariables_defaults[key] == nil then
+			sv[key] = nil
+		end
+	end
+	
+	if savedVariables.slashEnabled then
+		-- Register slash command and link function
+		SLASH_COMMANDS["/ht"] = HelmetToggle.ToggleHelmet
+	end
 	
 	-- Make sure the event is registered if auto mode is on
-	if savedVariables.auto then
+	if savedVariables.autoEnabled then
 		EVENT_MANAGER:RegisterForEvent(AddonName, EVENT_PLAYER_COMBAT_STATE, OnCombatStateChange)
 	end
 	
-	-- Create UI and restore button position
+	-- Create UI and restore position
 	InitUI()
-	RestoreUIPosition()
-	
-	-- Register events that use the UI
-	EVENT_MANAGER:RegisterForEvent(AddonName, EVENT_RETICLE_HIDDEN_UPDATE, OnReticleHidden)
+	HelmetToggle:RestoreUIPosition()
+	HelmetToggle:ShowUI(savedVariables.uiEnabled)
 	
 	EVENT_MANAGER:UnregisterForEvent(AddonName, EVENT_PLAYER_ACTIVATED)
 end

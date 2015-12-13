@@ -2,11 +2,13 @@
 ## Version: 1.4
 ## Author: |c70C0DECaptainBlagbird|r
 ## APIVersion: 100013
-## Description: Adds a button to the UI to toggle show/hide helmet.
+## Description: Adds additional options to toggle/show/hide helmet.
 ## SavedVariables: HelmetToggleSavedVariables
 
 
 HelmetToggle.lua
+Settings.lua
+Bindings.xml
 
 
 
