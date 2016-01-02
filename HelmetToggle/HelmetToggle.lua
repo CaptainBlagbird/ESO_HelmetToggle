@@ -9,7 +9,7 @@ https://github.com/CaptainBlagbird
 -- Addon info
 HelmetToggle = {}
 local AddonName = "HelmetToggle"
-local UIName = AddonName.."UI"
+local UIName = "HelmetToggleUI"
 HelmetToggle.SavedVariables_defaults = {
 	["position"] = {},
 	["autoEnabled"] = false,
@@ -118,6 +118,18 @@ local function InitUI()
 				SlashCommand("false")
 			end
 		end)
+	tlw:SetHidden(true)
+	
+	-- Show/hide UI, but depending on current UI state
+	function tlw:SetShown(show)
+		-- Always hide, but only show when cursor shown, compass shown and loot window hidden
+		local isCursorShown = IsReticleHidden()
+		local isCompassShown = not ZO_Compass:IsHidden()
+		local isLootHidden = ZO_Loot:IsHidden()
+		show = show and (isCursorShown and isCompassShown and isLootHidden)
+		-- Show/hide
+		self:SetHidden(not show)
+	end
 end
 
 -- UI position restore
@@ -135,13 +147,11 @@ end
 local function OnActionLayerPoppedPushed(eventCode, layerIndex, activeLayerIndex)
 	-- Handle UI hide/show
 	if eventCode == EVENT_ACTION_LAYER_POPPED then
-		HelmetToggleUI:SetHidden(true)
+		HelmetToggleUI:SetShown(false)
 	elseif eventCode == EVENT_ACTION_LAYER_PUSHED then
-		if ZO_Compass:IsHidden() or not ZO_Loot:IsHidden() then
-			HelmetToggleUI:SetHidden(true)
-		else
-			HelmetToggleUI:SetHidden(false)
-		end
+		HelmetToggleUI:SetShown(true)
+	else
+		-- Ignore
 	end
 end
 
@@ -151,7 +161,7 @@ function HelmetToggle:ShowUI(value)
 	-- If the argument isn't the current saved variable value, save the new value and show/hide UI
 	if value ~= savedVariables.uiEnabled then
 		savedVariables.uiEnabled = value
-		HelmetToggleUI:SetHidden(not value)
+		HelmetToggleUI:SetShown(value)
 	end
 	if value then
 		EVENT_MANAGER:RegisterForEvent(AddonName, EVENT_ACTION_LAYER_POPPED, OnActionLayerPoppedPushed)
