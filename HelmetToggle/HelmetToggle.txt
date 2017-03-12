@@ -1,7 +1,7 @@
 ## Title: Helmet Toggle |c555555v1.5|r
 ## Version: 1.5
 ## Author: |c70C0DECaptainBlagbird|r
-## APIVersion: 100017
+## APIVersion: 100018
 ## Description: Adds additional options to toggle/show/hide helmet.
 ## SavedVariables: HelmetToggleSavedVariables
 ## OptionalDependsOn: LibAddonMenu-2.0
