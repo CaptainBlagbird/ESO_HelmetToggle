@@ -115,9 +115,11 @@ local optionsTable = {
 -- Wait until all addons are loaded
 local function OnPlayerActivated(event)
     if LibStub ~= nil then
-        local LAM = LibStub("LibAddonMenu-2.0")
-        LAM:RegisterAddonPanel("HelmetToggle_Options", panelData)
-        LAM:RegisterOptionControls("HelmetToggle_Options", optionsTable)
+        local LAM = LibStub("LibAddonMenu-2.0", true)
+        if LAM ~= nil then
+            LAM:RegisterAddonPanel("HelmetToggle_Options", panelData)
+            LAM:RegisterOptionControls("HelmetToggle_Options", optionsTable)
+        end
     end
     
     -- Direct reference to saved variables table of current user/char
