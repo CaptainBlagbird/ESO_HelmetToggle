@@ -23,6 +23,7 @@ ZO_CreateStringId("SI_BINDING_NAME_HELMET_TOGGLE", "Helmet Toggle")
 -- Constants
 local HELMET_SHOW  = "0"
 local HELMET_HIDE = "1"
+local COLLECTIBLE_ID_HIDE_HELMET = 5002
 
 -- Local variables
 local savedVariables = {}
@@ -46,12 +47,23 @@ function HelmetToggle:ToggleHelmet(showHelmet, delay)
     -- Convert to string
     newSettingValue = showHelmet and HELMET_SHOW or HELMET_HIDE
     
-    if type(delay) == "number" and delay > 0 then
-        zo_callLater(function()
-                SetSetting(SETTING_TYPE_IN_WORLD, IN_WORLD_UI_SETTING_HIDE_HELM, newSettingValue, 1)
-            end, delay)
-    else
+    local function set()
+        --Get collectible setting
+        _,_,_,_,_,_, collectibleHideActive = GetCollectibleInfo(COLLECTIBLE_ID_HIDE_HELMET)
+        
+        -- Set collectible setting
+        if showHelmet == collectibleHideActive then
+            UseCollectible(COLLECTIBLE_ID_HIDE_HELMET)
+        end
+        
+        -- Set "polymorph helmet" setting
         SetSetting(SETTING_TYPE_IN_WORLD, IN_WORLD_UI_SETTING_HIDE_HELM, newSettingValue, 1)
+    end
+    
+    if type(delay) == "number" and delay > 0 then
+        zo_callLater(set, delay)
+    else
+        set()
     end
 end
 
